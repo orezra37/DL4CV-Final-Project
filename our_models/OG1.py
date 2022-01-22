@@ -3,9 +3,7 @@ import torch.nn as nn
 
 
 class OG1(nn.Module):
-""" Model of a naive encoder net """
-
-
+    """ Model of a naive encoder net """
 
     def __init__(self, num_heads):
         super(OG1, self).__init__()
@@ -26,7 +24,7 @@ class OG1(nn.Module):
         self.loss = nn.CrossEntropyLoss()
 
         # Final Layers
-        # Transformer Layer, keeps the option to change our individual transformer
+        # Transformer Layer, keeps the option to change to our individual transformer
         self.transformer = nn.Sequential(
             self.default_transformer
         )
@@ -36,8 +34,8 @@ class OG1(nn.Module):
             self.linear2
         )
 
-
     def forward(self, s):
         y = self.transformer(s)
-
+        y = self.mlp(y)
+        y = self.softmax(y)
         return y

@@ -6,7 +6,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 import LatentDataset
-import EvoEncoder
+from our_models import EvoEncoder
+
 
 def train(args):
 

@@ -8,13 +8,16 @@ from torch.utils.data import DataLoader
 import LatentDataset
 import EvoEncoder
 
-def train():
+def train(args):
+
+    with open(args.config, 'r') as f:
+        config = yaml.safe_load(f)
 
     train_dataset = LatentDataset("/path/to/training/data")
     val_dataset = LatentDataset("/path/to/validation/data")
     test_dataset = LatentDataset("/path/to/test/data")
 
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
     val_loader = DataLoader(val_dataset)
     test_loader = DataLoader(test_dataset)
 
@@ -22,7 +25,7 @@ def train():
     model = EvoEncoder(train=True)
     optimizer = Adam(model.parameters(), lr=config["lr"])
 
-    for e in config['epoch_num']:
+    for e in range(config['epochs']):
 
         model.train()
 

@@ -1,14 +1,15 @@
+from pathlib import Path
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 
 class GOformerDataset(Dataset):
   """S&Z dataset. Creates pairs of S&Z samples in a dictionary format."""
   
-  def __init__(self):
+  def __init__(self, data_path):
     """Initializes the list contains the dataset"""
-    self.data_lst = []   
+    self.data_lst = list(Path(data_path).glob('*'))
 
   def __len__(self):
     """

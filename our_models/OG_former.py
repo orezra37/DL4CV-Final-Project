@@ -11,7 +11,7 @@ class OG1(nn.Module):
         super(OG1, self).__init__()
         # Parameters
         self.num_heads = num_heads
-        self.res = 384
+        self.res = 384  # default size of residue
 
         # Layers
         self.default_transformer = nn.Transformer(nhead=self.num_heads,

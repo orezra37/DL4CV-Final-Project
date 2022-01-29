@@ -3,7 +3,9 @@ import torch.nn as nn
 
 
 class OG1(nn.Module):
-    """ Model of a naive encoder net """
+    """ Model of a naive encoder net.
+    The result has the same size as the input.
+    """
 
     def __init__(self, num_heads):
         super(OG1, self).__init__()

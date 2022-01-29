@@ -37,9 +37,6 @@ class OGDataset(Dataset):
     with open(str(self.data_lst[idx]), 'rb') as f:
       out = pickle.load(f)
 
-    out['s'].requires_grad_(True)
-    out['z'].requires_grad_(True)
-
     return (out['s'].cuda(), out['z'].cuda()), out['aatype'].cuda()
 
   def __append__(self, input):

@@ -10,7 +10,8 @@ class OGDataset(Dataset):
   
   def __init__(self, data_path):
     """Initializes the list contains the dataset"""
-    self.data_lst = list(Path(data_path).glob('*.pkl'))
+
+    self.data_lst = [path for path in Path(data_path).glob('**/*.pkl') if "pre_structure" in str(path)]
 
   def __len__(self):
     """

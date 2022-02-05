@@ -25,7 +25,7 @@ def train(args):
     model = EvoEncoder(train=True)
     model.half()
     model.cuda()
-    optimizer = Adam(model.parameters(), lr=float(config["lr"]))
+    optimizer = Adam(model.parameters(), lr=float(config["lr"]), eps=1e-4)
 
     for e in range(config['epochs']):
         print(e)
@@ -34,12 +34,16 @@ def train(args):
         for i_batch, batch in enumerate(train_loader):
             x, y = batch
             print(f'len:\t{x[0].size()}')
-            pred = model(x)
-            loss = criterion(pred, y[0])
+            probs = model(x)
+            _, pred = torch.max(probs.data, 1)
+            loss = criterion(probs, y[0])
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            print(f'loss:\t{loss.item()}')
+            seq_len = probs.size(0)
+            correct = (pred == y).sum().item()
+            accuracy = correct / seq_len
+            print(f'accuracy:\t{accuracy} %')
 
         # model.eval()
 

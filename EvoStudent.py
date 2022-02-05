@@ -4,11 +4,11 @@ from openfold.config import model_config
 import torch
 from torch import nn
 
-class EvoEncoder(nn.Module):
+class EvoStudent(nn.Module):
 
     def __init__(self, num_blocks=1, train=False, dropout=0):
 
-        super(EvoEncoder, self).__init__()
+        super(EvoStudent, self).__init__()
 
         # constants
         self.aa_types = 20

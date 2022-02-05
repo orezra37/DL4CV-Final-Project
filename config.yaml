@@ -1,3 +1,4 @@
-epochs: 1000
+epochs: 5
 batch_size: 1
 lr: 1e-3
+save_path: './checkpoints/EvoEncoder/'

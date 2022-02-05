@@ -36,8 +36,13 @@ class OG1(nn.Module):
             self.linear2
         )
 
-    def forward(self, s):
-        y = self.transformer(s)
+    def forward(self, s, z):
+        """
+        s - has size of (s,r)
+        z - has size of (r,r)
+        """
+        y = torch.cat((s, z), dim=1)
+        y = self.transformer(y)
         y = self.mlp(y)
         y = self.softmax(y)
         return y

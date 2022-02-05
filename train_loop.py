@@ -13,7 +13,7 @@ def train(args):
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
-    train_dataset = OGDataset("data")
+    train_dataset = OGDataset(args.data)
     # val_dataset = OGDataset("/path/to/validation/data")
     # test_dataset = OGDataset("/path/to/test/data")
 
@@ -23,6 +23,7 @@ def train(args):
 
     criterion = CrossEntropyLoss()
     model = EvoEncoder(train=True)
+    model.half()
     model.cuda()
     optimizer = Adam(model.parameters(), lr=float(config["lr"]))
 
@@ -32,12 +33,13 @@ def train(args):
 
         for i_batch, batch in enumerate(train_loader):
             x, y = batch
+            print(f'len:\t{x[0].size()}')
             pred = model(x)
             loss = criterion(pred, y[0])
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            print(loss.item())
+            print(f'loss:\t{loss.item()}')
 
         # model.eval()
 
@@ -49,9 +51,12 @@ def train(args):
 
 
 if __name__ == '__main__':
-    import pydevd_pycharm
-    pydevd_pycharm.settrace('10.96.2.219', port=123, stdoutToServer=True, stderrToServer=True)
     p = argparse.ArgumentParser()
+    p.add_argument('--debug', action='store_true')
     p.add_argument('--config', required=True, type=str)
+    p.add_argument('--data', required=True, type=str, help='path to dataset')
     args = p.parse_args()
+    if args.debug:
+        import pydevd_pycharm
+        pydevd_pycharm.settrace('10.96.3.231', port=123, stdoutToServer=True, stderrToServer=True)
     train(args)

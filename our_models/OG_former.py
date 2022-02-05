@@ -3,13 +3,15 @@ import torch.nn as nn
 
 
 class OG1(nn.Module):
-    """ Model of a naive encoder net """
+    """ Model of a naive encoder net.
+    The result has the same size as the input.
+    """
 
     def __init__(self, num_heads):
         super(OG1, self).__init__()
         # Parameters
         self.num_heads = num_heads
-        self.res = 384
+        self.res = 384  # default size of residue
 
         # Layers
         self.default_transformer = nn.Transformer(nhead=self.num_heads,
@@ -34,8 +36,13 @@ class OG1(nn.Module):
             self.linear2
         )
 
-    def forward(self, s):
-        y = self.transformer(s)
+    def forward(self, s, z):
+        """
+        s - has size of (s,r)
+        z - has size of (r,r)
+        """
+        y = torch.cat((s, z), dim=1)
+        y = self.transformer(y)
         y = self.mlp(y)
         y = self.softmax(y)
         return y

@@ -7,9 +7,11 @@ from torch.utils.data import DataLoader
 
 from OGDataset import OGDataset
 from our_models.EvoEncoder import EvoEncoder
+from our_models.OG_former import OG1
+
 
 def train(args):
-
+    """Train loop for OG-former based on EVO-former."""
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -51,7 +53,6 @@ def train(args):
         #     x, y = batch
         #     pred = model(x)
         #     loss = criterion(pred, y)
-
 
 
 if __name__ == '__main__':

@@ -1,9 +1,11 @@
 import argparse
 import yaml
+
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from OGDataset import OGDataset
 from our_models.EvoEncoder import EvoEncoder
@@ -12,6 +14,9 @@ from our_models.OG_former import OG1
 
 def train(args):
     """Train loop for OG-former based on EVO-former."""
+
+    writer = SummaryWriter('logs/EvoEncoder/'+args.name)
+    
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
@@ -45,7 +50,11 @@ def train(args):
             seq_len = probs.size(0)
             correct = (pred == y).sum().item()
             accuracy = correct / seq_len
-            print(f'accuracy:\t{accuracy} %')
+            print(f'accuracy:\t{accuracy * 100} %')
+            
+            # logging
+            writer.add_scalar('loss', loss.item(), i_batch)
+            writer.add_scalar('accuracy', accuracy * 100, i_batch)
 
         # model.eval()
 
@@ -59,7 +68,8 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true')
     p.add_argument('--config', required=True, type=str)
-    p.add_argument('--data', required=True, type=str, help='path to dataset')
+    p.add_argument('--data', required=True, type=str, help='path to dataset (with train/val/test folders)')
+    p.add_argument('--name', type=str, default='untitled', help='experiment name (for checkpoints and logs)')
     args = p.parse_args()
     if args.debug:
         import pydevd_pycharm

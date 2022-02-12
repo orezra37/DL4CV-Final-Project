@@ -1,4 +1,7 @@
-epochs: 5
-batch_size: 1
-lr: 1e-3
+epochs: 5 # number of epochs
+batch_size: 1 # number of proteins per batch
+train_logging_frequency: 10 # number of batches until next log
+val_logging_frequency: 100 # number of batches until next log
+checkpoint_frequency: 100 # save model every X batches
+lr: 1e-3 # learning rate for Adam optimizer
 save_path: './checkpoints/EvoEncoder/'

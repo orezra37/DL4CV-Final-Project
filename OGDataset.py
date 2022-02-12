@@ -38,7 +38,8 @@ class OGDataset(Dataset):
     with open(str(self.data_lst[idx]), 'rb') as f:
       out = pickle.load(f)
 
-    return (out['s'].cuda(), out['z'].cuda()), out['aatype'].cuda()
+    return (out['s'].cuda(), out['z'].cuda()), out['aatype'].cuda(), self.data_lst[idx].parents[0].stem \
+           +'__seed_'+self.data_lst[idx].stem.split('_')[-1]
 
   def __append__(self, input):
     """ Allows to append a given batch of samples to the dataset.

@@ -5,8 +5,6 @@ from our_models.OG_former import OG1
 from torch.optim import Adam
 
 
-
-
 def train_naive(model=None, batch_size=4, num_heads=4, lr=1e-2, epochs=10):
     """Train loop for OG-former based on a naive architecture."""
     train_dataset = OGDataset("data")

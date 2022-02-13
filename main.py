@@ -12,9 +12,9 @@ my_dataset = OGDataset("data")
 print('length of dataset:', len(my_dataset))
 x, y = my_dataset[0]
 s, z = x
-print('s:', s.size(),
-      '\nz:', z.size(),
-      '\nattr:', y.size())
+print('S sample:', s.size(),
+      '\nz sample:', z.size(),
+      '\naatype sample:', y.size())
 
 # naive_model_1 = OG1(num_heads=num_heads)
 # train(model=naive_model_1,

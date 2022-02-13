@@ -38,11 +38,23 @@ class OG1(nn.Module):
 
     def forward(self, s, z):
         """
-        s - has size of (s,r)
-        z - has size of (r,r)
+        s - has size of (s,384)
+        z - has size of (s,s,128)
         """
-        y = torch.cat((s, z), dim=1)
+        y = torch.cat((s.unsqueeze(), z), dim=1)
         y = self.transformer(y)
         y = self.mlp(y)
         y = self.softmax(y)
+        return y
+
+    @staticmethod
+    def cat_sz(self, s, z):
+        """
+        Args:
+            s and z
+        Returns:
+            y: cat s with the relevant column in z. has shape of ()
+        """
+        torch.cat((z[r, c], s[r], s[c]))
+        y = torch.cat((s, z), dim=1)
         return y

@@ -14,7 +14,8 @@ class OG1(nn.Module):
         self.num_heads = num_heads
         self.res = 384  # default size of residue
         self.s_features_num = 128  # default number of features per sequence
-        self.pre_process_fun = self.only_s
+        self.pre_process = self.only_s
+        self.num_classes = 20
 
         # Layers
         self.default_transformer = nn.Transformer(nhead=self.num_heads,
@@ -23,9 +24,9 @@ class OG1(nn.Module):
         self.linear1 = nn.Linear(in_features=self.res,
                                  out_features=self.res)
         self.linear2 = nn.Linear(in_features=self.res,
-                                 out_features=self.res)
+                                 out_features=self.num_classes)
         self.sigmoid = nn.Sigmoid()
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(dim=1)
 
         # Final Layers
         self.transformer = nn.Sequential(
@@ -42,10 +43,10 @@ class OG1(nn.Module):
         s - has size of (s,384)
         z - has size of (s,s,128)
         """
-        y = self.pre_process_fun(s, z)
+        y = self.pre_process(s, z)
         y = self.transformer(y)
-        y = self.mlp(y)
-        y = self.softmax(y)
+        y = self.mlp(y)  # result has size of (s,20)
+        y = self.softmax(y)  # result probability of each amino-acid
         return y
 
     @staticmethod
@@ -58,10 +59,11 @@ class OG1(nn.Module):
             y: cat s features with the match features in z. has shape of (s^2, 128+128+384)
         """
         seq_len = s.size(0)
+        res = z.size(2)
         for i in range(seq_len):
             for j in range(seq_len):
-                y = torch.cat((z[i,j], s[i], s[j]))
-        return y.flatten()
+                y = torch.cat((z[i, j], s[i], s[j]))
+        return torch.flatten(y)
 
     @staticmethod
     def only_s(s, z):

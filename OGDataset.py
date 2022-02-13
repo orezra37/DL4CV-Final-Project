@@ -31,9 +31,9 @@ class OGDataset(Dataset):
 
     Returns:
       sample (tuple) - a tuple containing two elements:
-      's' - a torch.Tensor whose the MSA Representation of the
+      's' - a torch.Tensor who's the MSA Representation of the
       protein sequence, has shape `(s,r,c)`.
-      'z' - a torch.Tensor whose the Pair Representation of the
+      'z' - a torch.Tensor who's the Pair Representation of the
       protein sequence, has shape `(r,r,c)`.
       labels - a torch tensor of size (s,) containing numbers from 0 to 19 (including)
       indicating the amino acid type in each position in the sequence.

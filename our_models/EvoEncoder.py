@@ -15,7 +15,7 @@ class EvoEncoder(nn.Module):
         self.feature_dim = 384
 
         # configurations
-        self.config = model_config("model_1", train=train)
+        self.config = model_config("model_3", train=train)
         self.config["model"]["evoformer_stack"]["c_m"] = self.feature_dim
         self.config["model"]["evoformer_stack"]["no_blocks"] = num_blocks
 

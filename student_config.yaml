@@ -1,0 +1,13 @@
+# path configurations
+save_path: './checkpoints/EvoEncoder/'
+
+# training parameters
+epochs: 1000 # number of epochs
+batch_size: 1 # number of proteins per batch
+lr: 1e-3 # learning rate for Adam optimizer
+checkpoint_frequency: 100 # save model every X batches
+train_logging_frequency: 10 # number of batches until next log
+val_logging_frequency: 100 # number of batches until next log
+
+#model parameters
+num_blocks: 3 # number of evoformer blocks

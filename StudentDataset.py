@@ -20,6 +20,8 @@ class StudentDataset(Dataset):
             while pre_structure.exists() and batch.exists():
                 self.data_lst.append((batch, pre_structure))
                 i += 1
+                pre_structure = Path(folder, f'pre_structure_{i}.pkl')
+                batch = Path(folder, f'batch_{i}.pkl')
 
     def __len__(self):
         """

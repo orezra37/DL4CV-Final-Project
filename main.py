@@ -5,8 +5,8 @@ from OGDataset import OGDataset
 
 num_heads = 4
 lr = 1e-2
-epochs = 10
-batch_size = 4
+epochs = 100
+batch_size = 1
 
 my_dataset = OGDataset("data")
 print('length of dataset:', len(my_dataset))
@@ -20,7 +20,6 @@ print('length of dataset:', len(my_dataset))
 naive_model_1 = OG1(num_heads=num_heads)
 train(model=naive_model_1,
       batch_size=batch_size,
-      num_heads=num_heads,
       lr=lr,
       epochs=epochs)
 

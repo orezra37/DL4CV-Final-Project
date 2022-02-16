@@ -18,9 +18,11 @@ class OG1(nn.Module):
         self.num_classes = 20
 
         # Layers
-        self.default_transformer = nn.Transformer(nhead=self.num_heads,
+        self.default_transformer = nn.Transformer(d_model=384,
+                                                  nhead=self.num_heads,
                                                   num_encoder_layers=6,
-                                                  dropout=0)
+                                                  dropout=0
+                                                  )
         self.linear1 = nn.Linear(in_features=self.res,
                                  out_features=self.res)
         self.linear2 = nn.Linear(in_features=self.res,
@@ -40,11 +42,11 @@ class OG1(nn.Module):
 
     def forward(self, s, z):
         """
-        s - has size of (s,384)
-        z - has size of (s,s,128)
+        s - has size of (batch_size, s, 384)
+        z - has size of (batch_size, s, s, 128)
         """
         y = self.pre_process(s, z)
-        y = self.transformer(y)
+        y = self.default_transformer(y, s)
         y = self.mlp(y)  # result has size of (s,20)
         y = self.softmax(y)  # result probability of each amino-acid
         return y

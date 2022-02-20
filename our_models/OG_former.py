@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 
 
-class OG1(nn.Module):
+class OG(nn.Module):
     """ Model of a naive encoder net.
     The result has the same size as the input.
     This version of model does not use the information of z.
     """
 
     def __init__(self, num_heads):
-        super(OG1, self).__init__()
+        super(OG, self).__init__()
         # Parameters
         self.num_heads = num_heads
         self.res = 384  # default size of residue
@@ -30,10 +30,6 @@ class OG1(nn.Module):
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
 
-        # Final Layers
-        self.transformer = nn.Sequential(
-            self.default_transformer
-        )
         self.mlp = nn.Sequential(
             self.linear1,
             self.sigmoid,

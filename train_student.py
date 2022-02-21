@@ -67,9 +67,9 @@ def train(args):
     # test_loader = DataLoader(test_dataset)
 
     criterion = MSELoss()
-    model = EvoStudent(num_blocks=config["num_blocks"], train=True)
+    model = EvoStudent(num_blocks=config["num_blocks"], train=True, split_gpus=True)
     # model.half()
-    model.cuda()
+    # model.cuda()
     # for i in range(len(model.evoformer.blocks)):
     #     # gpu_id = int(i // (config["num_blocks"] / 2))
     #     model.evoformer.blocks[i].to(f'cuda:{gpu_id}')
@@ -79,11 +79,11 @@ def train(args):
         print(e)
         model.train()
         avg_train_loss = 0
-        avg_train_s_loss = 0
+        avg_train_m_loss = 0
         avg_train_z_loss = 0
         for i_batch, batch in enumerate(train_loader):
             x, y = batch
-            target_s, target_z = y
+            target_m, target_z = y
 
             fetch_cur_batch = lambda t: t[..., 0]
             feats = tensor_tree_map(fetch_cur_batch, x)
@@ -92,38 +92,38 @@ def train(args):
             # Enable grad iff we're training and it's the final recycling layer
 
             for k, v in feats.items():
-                if k != "extra_msa":
-                    feats[k] = v #.half()
+                # if k != "extra_msa":
+                #     feats[k] = v #.half()
                 feats[k].cuda()
 
-            pred_s, pred_z = model(feats)
+            pred_m, pred_z = model(feats)#, GT_s=target_s)
 
             # s_loss = criterion(pred_s, target_s.half())
             # z_loss = criterion(pred_z, target_z.half())
 
             # normalize so loss won't explode
-            pred_s_norm = pred_s#(pred_s - target_s.mean()) / (target_s.std() + EPS)
-            pred_z_norm = pred_z #(pred_z - target_z.mean()) / (target_z.std() + EPS)
-            target_s_norm = target_s #(target_s.half() - target_s.mean()) / (target_s.std() + EPS)
+            pred_m_norm = pred_m.cuda(0)#(pred_s - target_s.mean()) / (target_s.std() + EPS)
+            pred_z_norm = pred_z.cuda(0) #(pred_z - target_z.mean()) / (target_z.std() + EPS)
+            target_m_norm = target_m #(target_s.half() - target_s.mean()) / (target_s.std() + EPS)
             target_z_norm = target_z #(target_z.half() - target_z.mean()) / (target_z.std() + EPS)
 
-            s_loss = 1e-5 * criterion(pred_s_norm, target_s_norm) #.half()
+            m_loss = 1e-2 * criterion(pred_m_norm, target_m_norm) #.half()
             z_loss = 1e-2 * criterion(pred_z_norm, target_z_norm) #.half()
-            print('s loss:\t', s_loss.item(), '\tz loss:\t', z_loss.item(), '\tlen: \t', feats['target_feat'].size(1))
-            loss = s_loss + z_loss
+            print('m loss:\t', m_loss.item(), '\tz loss:\t', z_loss.item(), '\tlen: \t', feats['target_feat'].size(1))
+            loss = z_loss # + s_loss
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             avg_train_loss += loss.item()
-            avg_train_s_loss += s_loss.item()
+            avg_train_m_loss += m_loss.item()
             avg_train_z_loss += z_loss.item()
             # logging
             if i_batch % config['train_logging_frequency'] == 0 and i_batch != 0:
                 writer.add_scalar('train/avg_loss', avg_train_loss / config["train_logging_frequency"], i_batch)
-                writer.add_scalar('train/avg_s_loss', avg_train_s_loss / config["train_logging_frequency"], i_batch)
+                writer.add_scalar('train/avg_m_loss', avg_train_m_loss / config["train_logging_frequency"], i_batch)
                 writer.add_scalar('train/avg_z_loss', avg_train_z_loss / config["train_logging_frequency"], i_batch)
                 avg_train_loss = 0
-                avg_train_s_loss = 0
+                avg_train_m_loss = 0
                 avg_train_z_loss = 0
 
             # if i_batch % config['val_logging_frequency'] == 0:
@@ -181,5 +181,5 @@ if __name__ == '__main__':
     if args.debug:
         import pydevd_pycharm
 
-        pydevd_pycharm.settrace('10.96.3.64', port=123, stdoutToServer=True, stderrToServer=True)
+        pydevd_pycharm.settrace('10.96.1.122', port=123, stdoutToServer=True, stderrToServer=True)
     train(args)

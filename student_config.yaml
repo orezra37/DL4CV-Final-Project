@@ -10,4 +10,4 @@ train_logging_frequency: 10 # number of batches until next log
 val_logging_frequency: 100 # number of batches until next log
 
 #model parameters
-num_blocks: 3 # number of evoformer blocks
+num_blocks: 2 # number of evoformer blocks

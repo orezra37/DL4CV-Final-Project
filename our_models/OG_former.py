@@ -8,27 +8,23 @@ class OG(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads):
+    def __init__(self, num_heads, num_encoding_layers):
         super(OG, self).__init__()
         # Parameters
         self.num_heads = num_heads
+        self.num_encoding_layers = num_encoding_layers
         self.res = 384  # default size of residue
         self.s_features_num = 128  # default number of features per sequence
         self.pre_process = self.only_s
         self.num_classes = 20
 
         # Layers
-        self.default_transformer = nn.Transformer(d_model=384,
-                                                  nhead=self.num_heads,
-                                                  num_encoder_layers=6,
-                                                  dropout=0
-                                                  )
-        self.linear1 = nn.Linear(in_features=self.res,
-                                 out_features=self.res)
-        self.linear2 = nn.Linear(in_features=self.res,
-                                 out_features=self.num_classes)
+        self.default_transformer = nn.Transformer(d_model=384, nhead=self.num_heads, num_encoder_layers=num_encoding_layers, dropout=0)
+        self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.linear2 = nn.Linear(in_features=self.res, out_features=self.num_classes)
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
+        self.norm = nn.LayerNorm(384)
 
         self.mlp = nn.Sequential(
             self.linear1,
@@ -42,6 +38,7 @@ class OG(nn.Module):
         z - has size of (batch_size, s, s, 128)
         """
         y = self.pre_process(s, z)
+        y = self.norm(y)
         y = self.default_transformer(y, s)
         y = self.mlp(y)  # result has size of (s,20)
         y = self.softmax(y)  # result probability of each amino-acid

@@ -20,7 +20,9 @@ print(data)
 my_dataset = OGDataset("data")
 print('length of dataset:', len(my_dataset))
 
-naive_model_1 = OG(num_heads=num_heads, num_encoder_layers=0, num_decoder_layers=5)
+naive_model_1 = OG(num_heads=num_heads,
+                   num_encoder_layers=num_encoder_layers,
+                   num_decoder_layers=num_decoder_layers)
 
 train(model=naive_model_1,
       batch_size=batch_size,

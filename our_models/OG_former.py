@@ -8,18 +8,21 @@ class OG(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads, num_encoding_layers):
+    def __init__(self, num_heads, num_encoder_layers, num_decoder_layers):
         super(OG, self).__init__()
         # Parameters
         self.num_heads = num_heads
-        self.num_encoding_layers = num_encoding_layers
         self.res = 384  # default size of residue
         self.s_features_num = 128  # default number of features per sequence
         self.pre_process = self.only_s
         self.num_classes = 20
+        self.num_encoder_layers = num_encoder_layers
+        self.num_decoder_layers = num_decoder_layers
 
         # Layers
-        self.default_transformer = nn.Transformer(d_model=384, nhead=self.num_heads, num_encoder_layers=num_encoding_layers, dropout=0)
+        self.default_transformer = nn.Transformer(d_model=384, nhead=self.num_heads,
+                                                  num_encoder_layers=num_encoder_layers,
+                                                  num_decoder_layers=num_decoder_layers)
         self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
         self.linear2 = nn.Linear(in_features=self.res, out_features=self.num_classes)
         self.sigmoid = nn.Sigmoid()

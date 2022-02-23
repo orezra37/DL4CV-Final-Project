@@ -23,7 +23,7 @@ def train_naive(model, lr=1e-2, batch_size=4, epochs=10, train_dataset=OGDataset
             x, y, _ = batch
             s, z = x
             probs = model(s, z)
-            loss = criterion(probs[i_batch], y[i_batch])
+            loss = criterion(probs[0], y[0])
             prediction = torch.argmax(probs.data, dim=2)
             loss.backward()
             optimizer.step()

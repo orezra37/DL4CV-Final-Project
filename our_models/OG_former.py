@@ -27,7 +27,7 @@ class OG(nn.Module):
         self.linear2 = nn.Linear(in_features=self.res, out_features=self.num_classes)
         self.sigmoid = nn.Sigmoid()
         self.softmax = nn.Softmax(dim=1)
-        self.norm = nn.LayerNorm(384)
+        # self.norm = nn.LayerNorm(384)
 
         self.mlp = nn.Sequential(
             self.linear1,
@@ -41,7 +41,7 @@ class OG(nn.Module):
         z - has size of (batch_size, s, s, 128)
         """
         y = self.pre_process(s, z)
-        y = self.norm(y)
+        # y = self.norm(y)
         y = self.default_transformer(y, s)
         y = self.mlp(y)  # result has size of (s,20)
         y = self.softmax(y)  # result probability of each amino-acid

@@ -1,28 +1,43 @@
+import json
 import torch
-from our_models.OG_former import OG1
+from our_models.OG_former import OGDefaultTransformer, OGOriginalTransformer
 from train_naive import train_naive as train
 from OGDataset import OGDataset
 
-num_heads = 4
-lr = 1e-2
-epochs = 10
-batch_size = 4
+f = open('config.json')
+conf = json.load(f)
 
-my_dataset = OGDataset("data")
-print('length of dataset:', len(my_dataset))
+num_heads = conf["num_heads"]
+lr = conf["lr"]
+epochs = conf["epochs"]
+batch_size = conf["batch_size"]
+test_every = conf["test_every"]
+num_encoder_layers = conf["num_encoder_layers"]
+num_decoder_layers = conf["num_decoder_layers"]
+train_data_path = conf["train_data_path"]
+test_data_path = conf["test_data_path"]
 
-# x, y = my_dataset[0]
-# s, z = x
-# print('S sample:', s.size(),
-#       '\nz sample:', z.size(),
-#       '\naatype sample:', y.size())
+print(conf)
 
-naive_model_1 = OG1(num_heads=num_heads)
+train_dataset = OGDataset(train_data_path)
+test_dataset = OGDataset(test_data_path)
+
+print('length of train dataset:', len(train_dataset), '\nlength of test dataset:', len(test_dataset))
+
+print(train_dataset.device)
+
+naive_model_1 = OGDefaultTransformer(num_heads=num_heads,
+                                     num_encoder_layers=num_encoder_layers,
+                                     num_decoder_layers=num_decoder_layers)
+naive_model_2 = OGOriginalTransformer(num_heads=num_heads)
+
 train(model=naive_model_1,
       batch_size=batch_size,
-      num_heads=num_heads,
       lr=lr,
-      epochs=epochs)
+      epochs=epochs,
+      train_dataset=train_dataset,
+      test_dataset=test_dataset,
+      test_every=test_every)
 
 # path = "Naive_model_state_dict"
 # print(path)

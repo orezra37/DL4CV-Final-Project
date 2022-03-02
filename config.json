@@ -1,10 +1,11 @@
 {
   "num_heads":  4,
-  "lr":         1e-2,
-  "epochs":     500,
+  "lr":         1e-4,
+  "epochs":     100,
   "batch_size": 1,
-  "test_every": 25,
+  "test_every": 1,
   "num_encoder_layers": 0,
   "num_decoder_layers": 5,
-  "data_path": "data"
+  "train_data_path": "data",
+  "test_data_path": "data"
 }

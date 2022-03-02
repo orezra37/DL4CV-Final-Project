@@ -42,8 +42,8 @@ class OGDefaultTransformer(nn.Module):
         z - has size of (batch_size, s, s, 128)
         """
         y = self.pre_process(s, z)
+        y = y[:, torch.randperm(s.size()[1]), :]
         y = self.s_norm(y)
-        y = self.norm(y)
         y = self.default_transformer(y, s)
         y = self.norm(y)
         y = self.mlp(y)  # result has size of (s,20)
@@ -84,7 +84,7 @@ class OGOriginalTransformer(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads, num_encoder_layers, num_decoder_layers):
+    def __init__(self, num_heads):
         super(OGOriginalTransformer, self).__init__()
         # Parameters
         self.num_heads = num_heads
@@ -120,7 +120,6 @@ class OGOriginalTransformer(nn.Module):
         y = self.s_norm(y)
         q, k, v = self.q(y), self.k(y), self.v(y)
         y = self.att(q, k, v)[0]
-        y = y + s
         y = self.norm(y)
         y = self.mlp(y)  # result has size of (s,20)
         y = self.softmax(y)  # result probability of each amino-acid

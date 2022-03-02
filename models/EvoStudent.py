@@ -110,6 +110,7 @@ class EvoStudent(nn.Module):
                 chunk_size=self.config.globals.chunk_size,
                 _mask_trans=self.config.model._mask_trans,
             )
+            s = s.cuda((i+1) % 4)
             m = m.cuda((i+1) % 4)
             z = z.cuda((i+1) % 4)
             msa_mask = msa_mask.cuda((i+1) % 4)
@@ -121,6 +122,9 @@ class EvoStudent(nn.Module):
                 # [*, N, N, C_z]
                 z = z + self.layer_norm_zs[i](z)
 
+        m_lst.append(m)
+        z_lst.append(z)
+        s_lst.append(s)
         # if self.split_gpus:
         #     m = m.to('cuda:1')
         #     z = z.to('cuda:1')
@@ -136,4 +140,4 @@ class EvoStudent(nn.Module):
         #     _mask_trans=self.config.model._mask_trans,
         # )
 
-        return m, z
+        return s_lst, m_lst, z_lst

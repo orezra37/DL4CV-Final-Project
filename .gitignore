@@ -1,1 +1,6 @@
 **/*.pyc
+.idea/
+checkpoints/
+datasets/
+logs/
+venv/

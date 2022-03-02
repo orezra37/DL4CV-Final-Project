@@ -51,4 +51,4 @@ class StudentDataset(Dataset):
         with open(str(self.data_lst[idx][1]), 'rb') as f:
             out = pickle.load(f)
 
-        return batch, (out['m'].cuda(), out['z'].cuda())
+        return batch, out

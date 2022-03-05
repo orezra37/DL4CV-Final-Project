@@ -16,6 +16,8 @@ num_encoder_layers = conf["num_encoder_layers"]
 num_decoder_layers = conf["num_decoder_layers"]
 train_data_path = conf["train_data_path"]
 test_data_path = conf["test_data_path"]
+model_save_name = conf["model_save_name"]
+model_state_path = conf["model_state_path"]
 
 print(conf)
 
@@ -28,17 +30,19 @@ print(train_dataset.device)
 
 naive_model_1 = OGDefaultTransformer(num_heads=num_heads,
                                      num_encoder_layers=num_encoder_layers,
-                                     num_decoder_layers=num_decoder_layers)
-naive_model_2 = OGOriginalTransformer(num_heads=num_heads)
+                                     num_decoder_layers=num_decoder_layers,
+                                     model_name=model_save_name)
+naive_model_2 = OGOriginalTransformer(num_heads=num_heads,
+                                      model_name=model_save_name)
 
-train(model=naive_model_1,
+model = naive_model_2
+if not model_state_path == "None":
+    model.load_state_dict(torch.load(model_state_path))
+
+train(model=model,
       batch_size=batch_size,
       lr=lr,
       epochs=epochs,
       train_dataset=train_dataset,
       test_dataset=test_dataset,
       test_every=test_every)
-
-# path = "Naive_model_state_dict"
-# print(path)
-# torch.save(naive_model_1.state_dict(), path)

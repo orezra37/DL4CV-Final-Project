@@ -8,7 +8,7 @@ class OGDefaultTransformer(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads, num_encoder_layers, num_decoder_layers):
+    def __init__(self, num_heads, num_encoder_layers, num_decoder_layers, model_name):
         super(OGDefaultTransformer, self).__init__()
         # Parameters
         self.num_heads = num_heads
@@ -18,6 +18,7 @@ class OGDefaultTransformer(nn.Module):
         self.num_classes = 20
         self.num_encoder_layers = num_encoder_layers
         self.num_decoder_layers = num_decoder_layers
+        self.model_name = model_name
 
         # Layers
         self.default_transformer = nn.Transformer(d_model=self.res, nhead=self.num_heads,
@@ -84,7 +85,7 @@ class OGOriginalTransformer(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads):
+    def __init__(self, num_heads, model_name):
         super(OGOriginalTransformer, self).__init__()
         # Parameters
         self.num_heads = num_heads
@@ -92,6 +93,7 @@ class OGOriginalTransformer(nn.Module):
         self.s_features_num = 128  # default number of features per sequence
         self.pre_process = self.only_s
         self.num_classes = 20
+        self.model_name = model_name
 
         # Layers
         self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)

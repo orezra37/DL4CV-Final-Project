@@ -16,21 +16,17 @@ def train_naive(model, lr, batch_size, epochs, train_dataset, test_dataset, test
     accs = []
     max_accuracy = 0
 
-    for e in range(1, 1 + int(epochs)):
-        print('\nepoch:', e)
-        print('train loss:', train_epoch(model, optimizer, train_loader, criterion))
+    if epochs == "inf":
+        epoch = 1
+        while True:
+            max_accuracy = run_epoch(model, epoch, criterion, train_loader, test_loader, optimizer, losses, accs,
+                                     test_every, max_accuracy)
+            epoch += 1
+    else:
+        for epoch in range(1, 1 + int(epochs)):
+            max_accuracy = run_epoch(model, epoch, criterion, train_loader, test_loader, optimizer, losses, accs,
+                                     test_every, max_accuracy)
 
-        if e % test_every == 0:
-            loss, accuracy = test_epoch(model, test_loader, criterion)
-            print('test loss:', loss)
-            print('accuracy', accuracy)
-            losses.append(loss)
-            accs.append(accuracy)
-
-            if accuracy > max_accuracy:
-                max_accuracy = accuracy
-                torch.save(model.state_dict(), "best_run")
-            torch.save((losses, accs), 'learning_statistics')
 
 def train_epoch(model, optimizer, train_loader, criterion):
     optimizer.zero_grad()
@@ -61,3 +57,24 @@ def test_epoch(model, test_loader, criterion):
         running_loss += loss.item()
     accuracy /= len(test_loader)
     return running_loss, accuracy.round().item()
+
+
+def run_epoch(model, epoch, criterion, train_loader, test_loader, optimizer, losses, accs, test_every, max_accuracy):
+    print('\nepoch:', epoch)
+    print('train loss:', train_epoch(model, optimizer, train_loader, criterion))
+
+    if epoch % test_every == 0:
+        loss, accuracy = test_epoch(model, test_loader, criterion)
+        print('test loss:', loss)
+        print('accuracy', accuracy)
+        losses.append(loss)
+        accs.append(accuracy)
+
+        if accuracy > max_accuracy:
+            max_accuracy = accuracy
+            torch.save(model.state_dict(), model.model_name)
+            print("saved!")
+        torch.save((losses, accs), 'learning_statistics')
+    return max_accuracy
+
+

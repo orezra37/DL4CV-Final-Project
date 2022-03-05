@@ -48,7 +48,7 @@ from openfold.utils.tensor_utils import (
 )
 
 
-class AlphaFold(nn.Module):
+class Backenfold(nn.Module):
     """
     Alphafold 2.
 
@@ -61,7 +61,7 @@ class AlphaFold(nn.Module):
             config:
                 A dict-like config object (like the one in config.py)
         """
-        super(AlphaFold, self).__init__()
+        super(Backenfold, self).__init__()
 
         self.globals = config.globals
         config = config.model
@@ -171,7 +171,7 @@ class AlphaFold(nn.Module):
 
         return ret
 
-    def iteration(self, feats, m_1_prev, z_prev, x_prev, _recycle=True):
+    def iteration(self, feats, m_1_prev, z_prev, x_prev):
         # Primary output dictionary
         outputs = {}
 
@@ -226,14 +226,6 @@ class AlphaFold(nn.Module):
             z_prev,
             x_prev,
         )
-
-        # If the number of recycling iterations is 0, skip recycling
-        # altogether. We zero them this way instead of computing them
-        # conditionally to avoid leaving parameters unused, which has annoying
-        # implications for DDP training.
-        if(not _recycle):
-            m_1_prev_emb *= 0
-            z_prev_emb *= 0
 
         # [*, S_c, N, C_m]
         m[..., 0, :, :] += m_1_prev_emb
@@ -416,7 +408,7 @@ class AlphaFold(nn.Module):
 
             # Enable grad iff we're training and it's the final recycling layer
             is_final_iter = cycle_no == (num_iters - 1)
-            with torch.set_grad_enabled(is_grad_enabled and is_final_iter):
+            with torch.set_grad_enabled(True): #is_grad_enabled and is_final_iter):
                 if is_final_iter:
                     self._enable_activation_checkpointing()
                     # Sidestep AMP bug (PyTorch issue #65766)
@@ -429,7 +421,6 @@ class AlphaFold(nn.Module):
                     m_1_prev,
                     z_prev,
                     x_prev,
-                    _recycle=(num_iters > 1)
                 )
 
         # Run auxiliary heads

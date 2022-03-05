@@ -1,3 +1,8 @@
+import os
+import sys
+import time
+import pickle
+import random
 import argparse
 import yaml
 import numpy as np
@@ -16,9 +21,40 @@ from openfold.utils.tensor_utils import tensor_tree_map
 from openfold.np.residue_constants import ID_TO_HHBLITS_AA
 
 # my imports
-from StudentDataset import StudentDataset
-from our_models.EvoStudent import EvoStudent
-from our_models.OG_former import OG1
+from models.backenfold import Backenfold
+
+
+from datetime import date
+import logging
+
+logging.basicConfig(stream=sys.stdout)
+
+# A hack to get OpenMM and PyTorch to peacefully coexist
+os.environ["OPENMM_DEFAULT_PLATFORM"] = "CUDA"  # "OpenCL"
+
+
+import torch
+from torch.utils.tensorboard import SummaryWriter
+from torch.optim import Adam
+from openfold.config import model_config
+from openfold.data import templates, feature_pipeline, data_pipeline
+from openfold.np import residue_constants, protein
+import openfold.np.relax.relax as relax
+from openfold.utils.import_weights import (
+    import_jax_weights_,
+)
+from openfold.utils.tensor_utils import (
+    tensor_tree_map,
+)
+from openfold.utils.loss import AlphaFoldLoss
+
+from scripts.utils import add_data_args
+
+# data transformations
+from openfold.data.data_transforms import make_seq_mask, make_atom14_masks
+
+
+
 
 MAX_CAPACITY_LENGTH = 400
 EPS = 1
@@ -49,153 +85,65 @@ dataset_id_to_aatype = {
 
 
 def train(args):
+
     """Train loop for OG-former based on EVO-former."""
 
     # torch.set_default_dtype(torch.float16)
-    Path(f'./checkpoints/EvoStudent/{args.name}').mkdir(exist_ok=True, parents=True)
-    writer = SummaryWriter('logs/EvoStudent/' + args.name)
+    config = model_config(args.model_name, train=True)
+    config.data.common.max_recycling_iters = args.num_recycles
+    Path(f'./checkpoints/Backenfold/{args.name}').mkdir(exist_ok=True, parents=True)
+    writer = SummaryWriter('logs/Backenfold/' + args.name)
 
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
+    my_data_pipeline = data_pipeline.DataPipeline(None)
+    my_feature_pipeline = feature_pipeline.FeaturePipeline(config.data)
 
-    train_dataset = StudentDataset(args.train_data)
-    val_dataset = StudentDataset(args.val_data)
-    # test_dataset = OGDataset("/path/to/test/data")
+    model = Backenfold(config)
+    import_jax_weights_(model, f'/shareDB/alphafold/params/params_{args.model_name}.npz', version=args.model_name)
+    model.cuda()
+    criterion = AlphaFoldLoss(config.loss)
 
-    train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True)
-    val_loader = DataLoader(val_dataset)
-    # test_loader = DataLoader(test_dataset)
+    data = my_data_pipeline.process_pdb(pdb_path=args.structure, alignment_dir=args.msa)
+    structure_feats = my_feature_pipeline.process_features(data, 'eval')
+    # Remove the recycling dimension
+    # ref_feats = {}
+    # for k, v in structure_feats.items():
+    #     ref_feats[k] = v.clone()
 
-    criterion = MSELoss()
-    model = EvoStudent(num_blocks=config["num_blocks"], train=True, split_gpus=True)
-    # model.half()
-    # model.cuda()
-    # for i in range(len(model.evoformer.blocks)):
-    #     # gpu_id = int(i // (config["num_blocks"] / 2))
-    #     model.evoformer.blocks[i].to(f'cuda:{gpu_id}')
-    optimizer = Adam(model.parameters(), lr=float(config["lr"]), eps=1e-4)
+    if args.sequence is None:
+        logits = torch.rand_like(structure_feats["target_feat"])
+        structure_feats['target_feat'] = logits - logits.mean(-2, keepdims=True)
+    for k, v in structure_feats.items():
+        structure_feats[k] = v.cuda()
 
-    for e in range(config['epochs']):
-        print(e)
-        model.train()
-        avg_train_loss = 0
-        avg_train_m_loss = 0
-        avg_train_z_loss = 0
-        for i_batch, batch in enumerate(train_loader):
-            x, y = batch
+    model.train()
 
-            fetch_cur_batch = lambda t: t[..., 0]
-            feats = tensor_tree_map(fetch_cur_batch, x)
-            if feats['target_feat'].size(1) > MAX_CAPACITY_LENGTH:
-                continue
-            # Enable grad iff we're training and it's the final recycling layer
+    #optimizer setup
+    structure_feats["target_feat"].requires_grad_(True)
+    optimizer = Adam([structure_feats["target_feat"]], lr=1e-3)  # TODO: disregard first and last position, and set them as
 
-            for k, v in feats.items():
-                # if k != "extra_msa":
-                #     feats[k] = v #.half()
-                feats[k].cuda()
-
-            s_preds, m_preds, z_preds = model(feats)#, GT_s=target_s)
-
-            # s_loss = criterion(pred_s, target_s.half())
-            # z_loss = criterion(pred_z, target_z.half())
-            s_loss = 0
-            m_loss = 0
-            z_loss = 0
-            for i in range(len(s_preds)):
-                if i == 3:
-                    target_s = y['s']
-                    target_m = y['m']
-                    target_z = y['z']
-                else:
-                    target_s = y[f's{i}']
-                    target_m = y[f'm{i}']
-                    target_z = y[f'z{i}']
-
-                s_loss += 0.01 * criterion(s_preds[i], target_s.cuda(i))
-                m_loss += criterion(m_preds[i], target_m.cuda(i))
-                z_loss += criterion(z_preds[i], target_z.cuda(i))
-
-            # normalize so loss won't explode
-            # pred_m_norm = pred_m.cuda(0)#(pred_s - target_s.mean()) / (target_s.std() + EPS)
-            # pred_z_norm = pred_z.cuda(0) #(pred_z - target_z.mean()) / (target_z.std() + EPS)
-            # target_m_norm = target_m #(target_s.half() - target_s.mean()) / (target_s.std() + EPS)
-            # target_z_norm = target_z #(target_z.half() - target_z.mean()) / (target_z.std() + EPS)
-
-            # m_loss = 1e-2 * criterion(pred_m_norm, target_m_norm) #.half()
-            # z_loss = 1e-2 * criterion(pred_z_norm, target_z_norm) #.half()
-            print('s loss:\t', s_loss.item(), 'm loss:\t', m_loss.item(), '\tz loss:\t', z_loss.item(), '\tlen: \t',
-                  feats['target_feat'].size(1))
-            loss = s_loss + m_loss + z_loss
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            avg_train_loss += loss.item()
-            avg_train_m_loss += m_loss.item()
-            avg_train_z_loss += z_loss.item()
-            # logging
-            if i_batch % config['train_logging_frequency'] == 0 and i_batch != 0:
-                writer.add_scalar('train/avg_loss', avg_train_loss / config["train_logging_frequency"], i_batch)
-                writer.add_scalar('train/avg_m_loss', avg_train_m_loss / config["train_logging_frequency"], i_batch)
-                writer.add_scalar('train/avg_z_loss', avg_train_z_loss / config["train_logging_frequency"], i_batch)
-                avg_train_loss = 0
-                avg_train_m_loss = 0
-                avg_train_z_loss = 0
-
-            # if i_batch % config['val_logging_frequency'] == 0:
-            #     print('evaluating...')
-            #     model.eval()
-            #     avg_val_loss = 0
-            #     avg_val_acc = 0
-            #     # val_log = open(f'./checkpoints/EvoEncoder/{args.name}/val_epoch_{e}_batch_{i_batch}.txt', 'w')
-            #     for _, val_batch in enumerate(val_loader):
-            #         x, y = val_batch
-            #         target_s, target_z = y
-            #         # print(f'len:\t{x[0].size()}')
-            #         # seq_len = x[0].size(1)
-            #         # if seq_len > MAX_CAPACITY_LENGTH:
-            #         #     continue
-            #         pred_s, pred_z = model(x)
-            #         loss = criterion(pred_s, target_s) + criterion(pred_z, target_z)
-            #         loss = criterion(probs, y[0])
-            #         seq_len = probs.size(0)
-            #         correct = (pred == y).sum().item()
-            #         accuracy = correct / seq_len
-            #         avg_val_loss += loss.item()
-            #         avg_val_acc += accuracy
-            #         # if accuracy < 1:
-            #         #     val_log.write(f'*******************')
-            #         # val_log.write(f'protein name: {name}\n')
-            #         # val_log.write(f'accuracy: {accuracy * 100}%\n')
-            #         # val_log.write(f'GT:\t{GT_str}\n')
-            #         # val_log.write(f'pred:\t{pred_str}\n\n')
-            #     # val_log.close()
-            #
-            #     if best_val_accuracy < avg_val_acc:
-            #         best_val_accuracy = avg_val_acc
-            #         torch.save(model, f'./checkpoints/EvoEncoder/{args.name}/best_model.pth')
-            #         with open(f'./checkpoints/EvoEncoder/{args.name}/log.txt', 'w') as f:
-            #             f.write(f'best model saved on epoch {e} and batch {i_batch}\naccuracy: '
-            #                     f'{best_val_accuracy * 100}% for {len(val_loader)} proteins')
-            #
-            #     writer.add_scalar('val/loss', avg_val_loss / len(val_loader), i_batch)
-            #     writer.add_scalar('val/accuracy', avg_val_acc * 100 / len(val_loader), i_batch)
-            #     model.train()
-            #
-            # if i_batch % config['checkpoint_frequency'] == 0 and i_batch != 0:
-            #     torch.save(model, f'./checkpoints/EvoEncoder/{args.name}/epoch_{e}_batch_{i_batch}.pth')
+    for _ in range(args.num_steps):
+        optimizer.zero_grad()
+        out = model(structure_feats)
+        ref_feats = tensor_tree_map(lambda t: t[..., -1].cuda(), structure_feats)
+        loss = criterion(out, ref_feats)
+        print(loss.item(), '\t', compute_drmsd(out["final_atom_positions"], ref_feats["all_atom_positions"]))
+        loss.backward()
+        optimizer.step()
 
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true')
-    p.add_argument('--config', required=True, type=str)
-    p.add_argument('--train_data', required=True, type=str, help='path to dataset train folder')
-    p.add_argument('--val_data', required=True, type=str, help='path to dataset validation folder')
+    p.add_argument('--sequence', type=str, help='path to initial sequence, otherwise a random sequence is initialized')
+    p.add_argument('--msa', type=str, help='precomputed sequence alignment path')
+    p.add_argument('--structure', required=True, type=str, help='path to pdb file of desired structure')
     p.add_argument('--name', type=str, default='untitled', help='experiment name (for checkpoints and logs)')
+    p.add_argument('--model_name', type=str, default='model_1', help='AF model name')
+    p.add_argument('--num_recycles', type=int, default=0, help="number of recycling iterations")
+    p.add_argument('--num_steps', type=int, default=300, help="number of optimization steps")
     args = p.parse_args()
     if args.debug:
         import pydevd_pycharm
+        pydevd_pycharm.settrace('10.96.3.148', port=123, stdoutToServer=True, stderrToServer=True)
 
-        pydevd_pycharm.settrace('10.96.1.122', port=123, stdoutToServer=True, stderrToServer=True)
     train(args)

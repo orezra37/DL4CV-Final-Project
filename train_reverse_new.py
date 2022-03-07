@@ -11,7 +11,7 @@ def train_naive(model, lr, epochs, train_dataset, test_dataset, test_every):
     criterion = MSELoss()
     optimizer = Adam(model.parameters(), lr=lr)
     model = model.to(train_dataset.device)
-    model.device = train_dataset.device
+    # model.device = train_dataset.device
     train_loader = DataLoader(train_dataset, shuffle=True)
     test_loader = DataLoader(test_dataset, shuffle=True)
     losses = []
@@ -50,14 +50,16 @@ def run_epoch(model, epoch, criterion, train_loader, test_loader, optimizer, los
 
 
 def train_epoch(model, optimizer, train_loader, criterion):
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     optimizer.zero_grad()
     model.train()
+    model = model.to(device)
     running_loss = 0
     for i_batch, batch in enumerate(train_loader):
         x, y, _ = batch
         s = x[0]
         seq = y
-        s, seq = s.to(model.device), seq.to(model.device)
+        s, seq = s.to(device), seq.to(device)
         prediction = model(seq)
         loss = criterion(prediction, s)
         loss.backward()

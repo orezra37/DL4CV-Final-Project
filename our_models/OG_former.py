@@ -172,7 +172,7 @@ class ReverseOriginalOG(nn.Module):
         self.res = 384  # default size of residue
         self.s_features_num = 128  # default number of features per sequence
         self.num_classes = 20
-        self.device = None
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
         # Layers
         self.linear0 = nn.Linear(in_features=self.num_classes, out_features=self.res)
@@ -200,12 +200,14 @@ class ReverseOriginalOG(nn.Module):
         s - latent space tensor which has shape (s, 384)
         """
         y = seq
-        y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor)  # has shape (seq, 20)
+        y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor).to(self.device)
+        # has shape (seq, 20)
         y = self.linear0(y)  # has shape (seq, 384)
         y = self.relu(y)
         y = self.norm0(y)
         q, k, v = self.q(y), self.k(y), self.v(y)
-        y = self.att(q, k, v)[0]
-        y = self.norm1(y)
+        y0 = self.att(q, k, v)[0]
+        y = self.norm1(y0)+y
         y = self.mlp(y)  # result has size of (s,384)
         return y[0]
+

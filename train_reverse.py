@@ -38,6 +38,7 @@ class Trainer:
 
     def train(self):
         self.model.train()
+        self.model.to(self.device)
         epoch = 1
         if self.conf['epochs'] == 'inf':
             while True:
@@ -57,12 +58,10 @@ class Trainer:
     def train_epoch(self):
         self.optimizer.zero_grad()
         running_loss = 0
-        model = copy.deepcopy(self.model.to(self.device))
-        # model = self.model.to(self.device)
         for i_batch, batch in enumerate(self.train_loader):
             seq, s = self.model_forward(batch)
-            seq, s = seq.to(self.device), s.to(self.device)
-            prediction = model(seq)
+            # seq, s = seq.to(self.device), s.to(self.device)
+            prediction = self.model(seq)
             loss = self.criterion(prediction, s)
             loss.backward()
             self.optimizer.step()

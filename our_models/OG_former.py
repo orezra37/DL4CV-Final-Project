@@ -44,7 +44,6 @@ class OGDefaultTransformer(nn.Module):
         z - has size of (batch_size, s, s, 128)
         """
         y = self.pre_process(s, z)
-        y = y[:, torch.randperm(s.size()[1]), :]
         y = self.s_norm(y)
         y = self.default_transformer(y, s)
         y = self.norm(y)
@@ -206,8 +205,58 @@ class ReverseOriginalOG(nn.Module):
         y = self.relu(y)
         y = self.norm0(y)
         q, k, v = self.q(y), self.k(y), self.v(y)
-        y0 = self.att(q, k, v)[0]
-        y = self.norm1(y0)+y
+        y = self.att(q, k, v)[0]
+        y = self.norm1(y)
         y = self.mlp(y)  # result has size of (s,384)
+        return y[0]
+
+
+class ReverseDefaultTransformerOG(nn.Module):
+    """ Model of a naive encoder net.
+    The result has the same size as the input.
+    This version of model does not use the information of z.
+    """
+
+    def __init__(self, config_path):
+
+        super(ReverseDefaultTransformerOG, self).__init__()
+        # Parameters
+        self.conf = json.load(open(config_path))
+        self.num_heads = self.conf['num_heads']
+        self.model_name = self.conf['model_save_name']
+        self.num_encoder_layers = self.conf['num_encoder_layers']
+        self.num_decoder_layers = self.conf['num_decoder_layers']
+        self.res = 384  # default size of residue
+        self.num_classes = 20
+        self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+        # Layers
+        self.linear0 = nn.Linear(in_features=self.num_classes, out_features=self.res)
+        self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.linear2 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.sigmoid = nn.Sigmoid()
+        self.norm = nn.LayerNorm(self.res)
+        self.default_transformer = nn.Transformer(d_model=self.res, nhead=self.num_heads,
+                                                  num_encoder_layers=self.num_encoder_layers,
+                                                  num_decoder_layers=self.num_decoder_layers)
+
+        self.mlp = nn.Sequential(
+            self.linear1,
+            self.sigmoid,
+            self.linear2
+        )
+
+    def forward(self, seq, s):
+        """
+        seq - One dimensional vector which represents the amino acid sequence
+        :return
+        s - latent space tensor which has shape (s, 384)
+        """
+        y = seq
+        y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor).to(self.device)
+        y0 = self.linear0(y)
+        y = self.default_transformer(y0, s)
+        y = self.norm(y+y0)
+        y = self.mlp(y)
         return y[0]
 

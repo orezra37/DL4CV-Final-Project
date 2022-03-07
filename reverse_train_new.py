@@ -4,16 +4,16 @@ from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
 import json
-import OG_former
 
 
 def train_naive(model, lr, epochs, train_dataset, test_dataset, test_every):
     """Train loop for OG-former based on a naive architecture."""
-    criterion = CrossEntr opyLoss()
+    criterion = MSELoss()
     optimizer = Adam(model.parameters(), lr=lr)
     model = model.to(train_dataset.device)
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=True)
+    model.device = train_dataset.device
+    train_loader = DataLoader(train_dataset, shuffle=True)
+    test_loader = DataLoader(test_dataset, shuffle=True)
     losses = []
     accs = []
     max_accuracy = 0
@@ -55,9 +55,11 @@ def train_epoch(model, optimizer, train_loader, criterion):
     running_loss = 0
     for i_batch, batch in enumerate(train_loader):
         x, y, _ = batch
-        s, z = x
-        probs = model(s, z)
-        loss = criterion(probs[0], y[0])
+        s = x[0]
+        seq = y
+        s, seq = s.to(model.device), seq.to(model.device)
+        prediction = model(seq)
+        loss = criterion(prediction, s)
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
@@ -69,12 +71,11 @@ def test_epoch(model, test_loader, criterion):
     accuracy = 0
     for i_batch, batch in enumerate(test_loader):
         x, y, _ = batch
-        s, z = x
-        probs = model(s, z)
-        loss = criterion(probs[0], y[0])
-        prediction = torch.argmax(probs.data, dim=2)
-        correct = (prediction == y).sum()
-        accuracy += (100 * correct / s.size(1))
+        s = x[0][0]
+        seq = y
+        prediction = model(seq)
+        loss = criterion(prediction, s)
+        accuracy += 100 * (1 - ((prediction - s).abs() / (prediction ** 2 + s ** 2) ** 0.5).mean())
         running_loss += loss.item()
     accuracy /= len(test_loader)
     return running_loss, accuracy.round().item()

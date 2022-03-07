@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import json
 
 
 class OGDefaultTransformer(nn.Module):
@@ -154,3 +155,57 @@ class OGOriginalTransformer(nn.Module):
         """
         return s
 
+
+class ReverseOriginalOG(nn.Module):
+    """ Model of a naive encoder net.
+    The result has the same size as the input.
+    This version of model does not use the information of z.
+    """
+
+    def __init__(self, config_path):
+
+        super(ReverseOriginalOG, self).__init__()
+        # Parameters
+        self.conf = json.load(open(config_path))
+        self.num_heads = self.conf['num_heads']
+        self.model_name = self.conf['model_save_name']
+        self.res = 384  # default size of residue
+        self.s_features_num = 128  # default number of features per sequence
+        self.num_classes = 20
+        self.device = None
+
+        # Layers
+        self.linear0 = nn.Linear(in_features=self.num_classes, out_features=self.res)
+        self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.linear2 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.sigmoid = nn.Sigmoid()
+        self.norm0 = nn.LayerNorm(self.res)
+        self.norm1 = nn.LayerNorm(self.res)
+        self.q = nn.Linear(in_features=self.res, out_features=self.res)
+        self.k = nn.Linear(in_features=self.res, out_features=self.res)
+        self.v = nn.Linear(in_features=self.res, out_features=self.res)
+        self.att = nn.MultiheadAttention(embed_dim=self.res, num_heads=self.num_heads)
+        self.relu = nn.ReLU()
+
+        self.mlp = nn.Sequential(
+            self.linear1,
+            self.sigmoid,
+            self.linear2
+        )
+
+    def forward(self, seq):
+        """
+        seq - One dimensional vector which represents the amino acid sequence
+        :return
+        s - latent space tensor which has shape (s, 384)
+        """
+        y = seq
+        y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor)  # has shape (seq, 20)
+        y = self.linear0(y)  # has shape (seq, 384)
+        y = self.relu(y)
+        y = self.norm0(y)
+        q, k, v = self.q(y), self.k(y), self.v(y)
+        y = self.att(q, k, v)[0]
+        y = self.norm1(y)
+        y = self.mlp(y)  # result has size of (s,384)
+        return y[0]

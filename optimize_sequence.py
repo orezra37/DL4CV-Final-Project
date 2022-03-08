@@ -53,8 +53,8 @@ from scripts.utils import add_data_args
 # data transformations
 from openfold.data.data_transforms import make_seq_mask, make_atom14_masks
 
-
-
+# for rmsd
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 MAX_CAPACITY_LENGTH = 400
 EPS = 1
@@ -84,7 +84,7 @@ dataset_id_to_aatype = {
 }
 
 def init_logits(seq_len):
-    logits = 0.01 * torch.rand(seq_len, 20, 1)
+    logits = 0.01 * torch.rand(seq_len[0], 20, 1)
     logits -= logits.mean(-1, keepdims=True)
     logits.requires_grad_(True)
     return logits
@@ -180,18 +180,31 @@ def AFLoss_with_dict(config):
     return compute_losses
 
 def config_loss_weights(weight_dict, config):
-    for loss_name, weight in weight_dict.items():
-        config[loss_name] = weight
+    for loss_name, val in weight_dict.items():
+        if loss_name == 'fape':
+            config["fape"]["weight"] = val["total"]
+            config["fape"]["backbone"]["weight"] = val["backbone"]
+            config["fape"]["sidechain"]["weight"] = val["sidechain"]
+        else:
+            config[loss_name]["weight"] = val
 
 def log_losses(writer, loss_dict, step_i):
     for k, v in loss_dict.items():
         writer.add_scalar(k, v, step_i)
 
+def compute_rmsd(out, ref):
+    sup = SVDSuperimposer()
+    sup.set(out, ref)
+    sup.run()
+    rms = sup.get_rms()
+    return rms
+
 def log_metrics(writer, out, ref, step_i):
     
     metric_fns = {
         "plddt": lambda: torch.mean(out['plddt']).item(),
-        "drmsd": lambda: compute_drmsd(out["final_atom_positions"], ref["all_atom_positions"]).mean().item()
+        "rmsd": lambda: compute_rmsd(out["final_atom_positions"].view(-1, 3).cpu().detach().numpy(),
+                                     ref["all_atom_positions"].view(-1, 3).cpu().detach().numpy())
     }
 
     for k, v in metric_fns.items():
@@ -201,23 +214,42 @@ def optimize(args):
 
     """optimize sequence using AF gradients"""
 
-    # torch.set_default_dtype(torch.float16)
+    ############# initializations ################
+
     config = model_config(args.model_name, train=True)
     config.data.common.max_recycling_iters = args.num_recycles
     Path(f'./checkpoints/Backenfold/{args.name}').mkdir(exist_ok=True, parents=True)
     writer = SummaryWriter('logs/Backenfold/' + args.name)
 
+    # reference structure
     my_data_pipeline = data_pipeline.DataPipeline(None)
     my_feature_pipeline = feature_pipeline.FeaturePipeline(config.data)
+    data = my_data_pipeline.process_pdb(pdb_path=args.structure, alignment_dir=args.msa)
+    structure_feats = my_feature_pipeline.process_features(data, 'eval')
 
+    # torch.set_default_dtype(torch.float16)
     model = Backenfold(config)
     import_jax_weights_(model, f'/shareDB/alphafold/params/params_{args.model_name}.npz', version=args.model_name)
     model.cuda()
     criterion = AFLoss_with_dict(config.loss) # AlphaFoldLoss(config.loss)#
 
-    data = my_data_pipeline.process_pdb(pdb_path=args.structure, alignment_dir=args.msa)
-    structure_feats = my_feature_pipeline.process_features(data, 'eval')
 
+    #loss weights
+    loss_weight_dict = {
+        'distogram': 0.5,
+        'experimentally_resolved': 0,
+        'fape': {
+                'total': 1,
+                'backbone': 0.5,
+                'sidechain': 0.5,
+                },
+        'lddt': 0.1,
+        'masked_msa': 0.5,
+        'supervised_chi': 0.1,
+        'violation': 0,
+        'tm': 0
+    }
+    config_loss_weights(loss_weight_dict, config.loss)
     if args.sequence is None:
         logits = init_logits(structure_feats['seq_length'])
 
@@ -229,7 +261,7 @@ def optimize(args):
     #optimizer setup
     optimizer = Adam([logits], lr=1e-3)  # TODO: disregard first and last position, and set them as
 
-    # optimization loop
+    ############## optimization loop #####################
     print('starting optimization')
     ref_feats = tensor_tree_map(lambda t: t[..., -1].clone().detach().cuda(), structure_feats)
     for step_i in range(args.num_steps):

@@ -8,5 +8,7 @@
   "model_save_name": "None",
   "model_load_path": "None",
   "trainer_save_path": "trainer_save_test",
-  "trainer_load_path": "None"
+  "trainer_load_path": "None",
+  "num_encoder_layers": 5,
+  "num_decoder_layers": 5
 }

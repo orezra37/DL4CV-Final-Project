@@ -176,20 +176,25 @@ class ReverseOriginalOG(nn.Module):
         # Layers
         self.linear0 = nn.Linear(in_features=self.num_classes, out_features=self.res)
         self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
-        self.linear2 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.mlp_linear1 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.mlp_linear2 = nn.Linear(in_features=self.res, out_features=self.res)
         self.sigmoid = nn.Sigmoid()
-        self.norm0 = nn.LayerNorm(self.res)
-        self.norm1 = nn.LayerNorm(self.res)
-        self.q = nn.Linear(in_features=self.res, out_features=self.res)
-        self.k = nn.Linear(in_features=self.res, out_features=self.res)
-        self.v = nn.Linear(in_features=self.res, out_features=self.res)
-        self.att = nn.MultiheadAttention(embed_dim=self.res, num_heads=self.num_heads)
-        self.relu = nn.ReLU()
+        # self.norm0 = nn.LayerNorm(self.res)
+        # self.norm1 = nn.LayerNorm(self.res)
+        self.q0 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.k0 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.v0 = nn.Linear(in_features=self.res, out_features=self.res)
+        # self.q1 = nn.Linear(in_features=self.res, out_features=self.res)
+        # self.k1 = nn.Linear(in_features=self.res, out_features=self.res)
+        # self.v1 = nn.Linear(in_features=self.res, out_features=self.res)
+        self.att0 = nn.MultiheadAttention(embed_dim=self.res, num_heads=self.num_heads)
+        # self.att1 = nn.MultiheadAttention(embed_dim=self.res, num_heads=self.num_heads)
+        # self.relu = nn.ReLU()
 
         self.mlp = nn.Sequential(
-            self.linear1,
+            self.mlp_linear1,
             self.sigmoid,
-            self.linear2
+            self.mlp_linear2
         )
 
     def forward(self, seq):
@@ -202,11 +207,17 @@ class ReverseOriginalOG(nn.Module):
         y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor).to(self.device)
         # has shape (seq, 20)
         y = self.linear0(y)  # has shape (seq, 384)
-        y = self.relu(y)
-        y = self.norm0(y)
-        q, k, v = self.q(y), self.k(y), self.v(y)
-        y = self.att(q, k, v)[0]
-        y = self.norm1(y)
+        y = self.sigmoid(y)
+        q, k, v = self.q0(y), self.k0(y), self.v0(y)
+        y = self.att0(q, k, v)[0]
+
+        y = self.sigmoid(y)
+        y = self.linear1(y)
+        y = self.sigmoid(y)
+
+        q, k, v = self.q1(y), self.k1(y), self.v1(y)
+        y = self.att1(q, k, v)[0]
+
         y = self.mlp(y)  # result has size of (s,384)
         return y[0]
 
@@ -238,7 +249,7 @@ class ReverseDefaultTransformerOG(nn.Module):
         self.norm = nn.LayerNorm(self.res)
         self.default_transformer = nn.Transformer(d_model=self.res, nhead=self.num_heads,
                                                   num_encoder_layers=self.num_encoder_layers,
-                                                  num_decoder_layers=self.num_decoder_layers)
+                                                  num_decoder_layers=self.num_decoder_layers,)
 
         self.mlp = nn.Sequential(
             self.linear1,
@@ -252,7 +263,7 @@ class ReverseDefaultTransformerOG(nn.Module):
         :return
         s - latent space tensor which has shape (s, 384)
         """
-        y = seq
+        y = seq[0]
         y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor).to(self.device)
         y0 = self.linear0(y)
         y = self.default_transformer(y0, s)

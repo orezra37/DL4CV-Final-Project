@@ -6,6 +6,8 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
 import json
 import pickle
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Trainer:
@@ -46,6 +48,7 @@ class Trainer:
                 self.train_epoch()
                 if epoch % self.conf['test_every'] == 0:
                     self.test_epoch()
+                    self.save_fig()
                 epoch += 1
         else:
             while epoch <= self.conf['epochs']:
@@ -53,6 +56,7 @@ class Trainer:
                 self.train_epoch()
                 if epoch % self.conf['test_every'] == 0:
                     self.test_epoch()
+                    self.save_fig()
                 epoch += 1
 
     def train_epoch(self):
@@ -62,7 +66,7 @@ class Trainer:
             seq, s = self.model_forward(batch)
             # seq, s = seq.to(self.device), s.to(self.device)
             prediction = self.model(seq)
-            loss = self.criterion(prediction, s)
+            loss = self.criterion(prediction, s[0])
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
@@ -77,7 +81,7 @@ class Trainer:
             seq, s = Trainer.model_forward(batch)
             seq, s = seq.to(self.device), s.to(self.device)
             prediction = self.model(seq)
-            running_loss = self.criterion(prediction, s).item()
+            running_loss = self.criterion(prediction, s[0]).item()
             accuracy += Trainer.accuracy_evaluation(prediction=prediction,
                                                     tgt=s)
 
@@ -96,7 +100,7 @@ class Trainer:
     @staticmethod
     def model_forward(batch):
         x, y, _ = batch
-        s = x[0][0]
+        s = x[0]
         seq = y
         return seq, s
 
@@ -108,3 +112,17 @@ class Trainer:
         file = open(self.conf['trainer_save_path'], 'wb')
         pickle.dump(self.__dict__, file)
         file.close()
+
+    def save_fig(self):
+        fig, ax = plt.subplots(2, 1)
+        loss = np.array(self.loss_lst)
+        accuracy = np.array(self.accuracy_lst)
+        epochs = np.linspace(1, len(loss)//self.conf['test_every'], len(loss)//self.conf['test_every'])
+        ax[0].plot(epochs, loss)
+        plt.ylabel('Loss')
+        ax[1].plot(epochs, accuracy)
+        plt.ylabel('Accuracy')
+        if self.conf['trainer_save_path'] != 'None':
+            plt.savefig(self.conf['trainer_save_path'])
+
+

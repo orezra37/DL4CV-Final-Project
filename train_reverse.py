@@ -56,8 +56,8 @@ class Trainer:
                 self.train_epoch()
                 if epoch % self.conf['test_every'] == 0:
                     self.test_epoch()
-                    self.save_fig()
                 epoch += 1
+            self.save_fig()
 
     def train_epoch(self):
         self.optimizer.zero_grad()
@@ -124,5 +124,6 @@ class Trainer:
         plt.ylabel('Accuracy')
         if self.conf['trainer_save_path'] != 'None':
             plt.savefig(self.conf['trainer_save_path'])
+        plt.close(fig)
 
 

@@ -215,8 +215,8 @@ class ReverseOriginalOG(nn.Module):
         y = self.linear1(y)
         y = self.sigmoid(y)
 
-        q, k, v = self.q1(y), self.k1(y), self.v1(y)
-        y = self.att1(q, k, v)[0]
+        # q, k, v = self.q1(y), self.k1(y), self.v1(y)
+        # y = self.att1(q, k, v)[0]
 
         y = self.mlp(y)  # result has size of (s,384)
         return y[0]

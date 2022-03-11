@@ -19,7 +19,7 @@ class Trainer:
         """
         Initializing the trainer.
         :param config_path: A jason format confing file.
-        :param model: The model we would like to train.
+        :param model: The model we would like to train. if None assume that keep training a previous loaded trainer.
         """
         self.conf = json.load(open(config_path))
 
@@ -111,7 +111,8 @@ class Trainer:
 
     @staticmethod
     def accuracy_evaluation(prediction, tgt):
-        return 100 * (1 - ((prediction - tgt).abs() / (prediction ** 2 + tgt ** 2) ** 0.5).mean())
+        # return 100 * (1 - ((prediction - tgt).abs() / (prediction ** 2 + tgt ** 2) ** 0.5).mean())
+        return 100 * (prediction == tgt).sum() / tgt.size(1)
 
     def save_trainer(self):
         file = open(self.conf['trainer_save_path'], 'wb')

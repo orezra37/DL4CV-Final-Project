@@ -49,6 +49,7 @@ class Trainer:
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     def train(self):
+        """ Runs a general train loop"""
         self.model.train()
         self.model.to(self.device)
         epoch = 1
@@ -63,6 +64,9 @@ class Trainer:
             epoch += 1
 
     def train_epoch(self):
+        """
+        Trains a single epoch.
+        """
         self.optimizer.zero_grad()
         running_loss = 0
         for i_batch, batch in enumerate(self.train_loader):
@@ -74,6 +78,10 @@ class Trainer:
         print('train loss:', running_loss)
 
     def test_epoch(self):
+        """
+        Tests epoch - saves the epoch number, loss and accuracy in their lists.
+         Also prints figure for the statistics collected so far.
+        """
         running_loss = 0
         accuracy = 0
         self.model = self.model.to(self.device)
@@ -111,15 +119,26 @@ class Trainer:
 
     @staticmethod
     def accuracy_evaluation(prediction, tgt):
+        """
+        Calculating the accuracy for some prediction and target.
+        """
         # return 100 * (1 - ((prediction - tgt).abs() / (prediction ** 2 + tgt ** 2) ** 0.5).mean())
         return 100 * (prediction == tgt).sum() / tgt.size(1)
 
     def save_trainer(self):
+        """
+        Saves the trainer, including the model and the statistics collected so far.
+        """
         file = open(self.conf['trainer_save_path'], 'wb')
         pickle.dump(self.__dict__, file)
         file.close()
 
     def save_fig(self, epoch):
+        """
+        Creating and saving a figure of the learning statistic collected every test epoch.
+        :param epoch: The number of the epoch which is the figure was created.
+        :return: creates a figure with epoch and time labels for the learning statistics so far.
+        """
         fig, ax = plt.subplots(2, 1)
         loss = np.array(self.loss_lst)
         accuracy = np.array(self.accuracy_lst)

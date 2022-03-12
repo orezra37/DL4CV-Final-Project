@@ -14,7 +14,7 @@ class Trainer:
     """
     Trainer class in order to train models.
     """
-
+# add accuracy total counts how much are perfectly restored
     def __init__(self, config_path, model=None):
         """
         Initializing the trainer.
@@ -26,10 +26,13 @@ class Trainer:
 
         if self.conf['trainer_load_path'] == 'None':
             self.loss_lst = []
-            self.accuracy_lst = []
+            self.accuracy_single_lst = []
+            self.accuracy_total_lst = []
             self.epoch_lst = []
             self.best_accuracy = 0
+            self.best_accuracy_tot = 0
             self.fig_lst = []
+            self.train_is_done = False
         else:
             file = open(self.conf['trainer_load_path'], 'rb')
             self.__dict__ = pickle.load(file)
@@ -57,11 +60,12 @@ class Trainer:
         epoch = 1
         num_epochs = float(self.conf['epochs'])
 
-        while epoch <= num_epochs:
+        while epoch <= num_epochs and not self.train_is_done:
             print('\nepoch:', epoch)
             self.train_epoch()
             if epoch % self.conf['test_every'] == 0:
                 self.test_epoch(epoch)
+            if epoch % self.conf['fig_every'] == 0:
                 self.save_fig(epoch)
             epoch += 1
 
@@ -86,23 +90,33 @@ class Trainer:
         """
         running_loss = 0
         accuracy = 0
+        accuracy_tot = 0
         self.model = self.model.to(self.device)
         for i_batch, batch in enumerate(self.test_loader):
             x, prediction, tgt = self.model_forward(batch)
             running_loss += self.criterion(prediction, tgt).item()
             accuracy += Trainer.accuracy_evaluation(prediction, tgt)
+            if (torch.argmax(prediction.data, dim=1) == tgt).prod():
+                accuracy_tot += 1
 
         accuracy /= len(self.test_loader)
         self.epoch_lst.append(epoch)
         self.loss_lst.append(running_loss)
-        self.accuracy_lst.append(accuracy.item())
+        self.accuracy_single_lst.append(accuracy.item())
         print('test loss:', running_loss)
-        print('accuracy:', ((accuracy * 10).round() / 10).item())
+        print('accuracy:', accuracy.round().item())
+        print('success rate:', accuracy_tot, '/', len(self.test_loader))
 
-        if accuracy.item() < self.best_accuracy:
+        if accuracy_tot > self.best_accuracy_tot or \
+                (accuracy_tot == self.best_accuracy_tot and accuracy.item() <= self.best_accuracy):
             self.best_accuracy = accuracy.item()
+            self.best_accuracy_tot = accuracy_tot
             if self.conf['model_save_name'] != 'None':
                 torch.save(self.model.state_dict(), self.conf['model_save_name'])
+                print('Model saved!')
+            if accuracy_tot == len(self.test_loader):
+                self.train_is_done = True
+                self.save_fig(epoch)
 
         if self.conf['trainer_save_path'] != 'None':
             self.save_trainer()
@@ -125,7 +139,7 @@ class Trainer:
         Calculating the accuracy for some prediction and target.
         """
         # return 100 * (1 - ((prediction - tgt).abs() / (prediction ** 2 + tgt ** 2) ** 0.5).mean())
-        return 100 * (torch.argmax(prediction.data, dim=1) == tgt).sum() / prediction.size(1)
+        return 100 * (torch.argmax(prediction.data, dim=1) == tgt).sum() / prediction.size(0)
 
     def save_trainer(self):
         """
@@ -143,7 +157,7 @@ class Trainer:
         """
         fig, ax = plt.subplots(2, 1)
         loss = np.array(self.loss_lst)
-        accuracy = np.array(self.accuracy_lst)
+        accuracy = np.array(self.accuracy_single_lst)
         epochs = np.array(self.epoch_lst)
         ax[0].plot(epochs, loss)
         plt.ylabel('Loss')

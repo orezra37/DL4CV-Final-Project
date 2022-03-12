@@ -22,12 +22,14 @@ class Trainer:
         :param model: The model we would like to train. if None assume that keep training a previous loaded trainer.
         """
         self.conf = json.load(open(config_path))
+        self.model = model
 
         if self.conf['trainer_load_path'] == 'None':
             self.loss_lst = []
             self.accuracy_lst = []
             self.epoch_lst = []
             self.best_accuracy = 0
+            self.fig_lst = []
         else:
             file = open(self.conf['trainer_load_path'], 'rb')
             self.__dict__ = pickle.load(file)
@@ -38,14 +40,14 @@ class Trainer:
             self.model = model
             self.model.load_state_dict(torch.load(self.conf['model_load_path']))
 
-        self.criterion = MSELoss()
+        self.criterion = CrossEntropyLoss()
         self.optimizer = Adam(model.parameters(), self.conf['lr'])
         self.train_loader = DataLoader(dataset=OGDataset(self.conf['train_data_path']),
                                        shuffle=True,
-                                       batch_size=conf['batch_size'])
+                                       batch_size=self.conf['batch_size'])
         self.test_loader = DataLoader(dataset=OGDataset(self.conf['test_data_path']),
                                       shuffle=True,
-                                      batch_size=conf['batch_size'])
+                                      batch_size=self.conf['batch_size'])
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     def train(self):
@@ -59,7 +61,7 @@ class Trainer:
             print('\nepoch:', epoch)
             self.train_epoch()
             if epoch % self.conf['test_every'] == 0:
-                self.test_epoch()
+                self.test_epoch(epoch)
                 self.save_fig(epoch)
             epoch += 1
 
@@ -77,7 +79,7 @@ class Trainer:
             running_loss += loss.item()
         print('train loss:', running_loss)
 
-    def test_epoch(self):
+    def test_epoch(self, epoch):
         """
         Tests epoch - saves the epoch number, loss and accuracy in their lists.
          Also prints figure for the statistics collected so far.
@@ -95,7 +97,7 @@ class Trainer:
         self.loss_lst.append(running_loss)
         self.accuracy_lst.append(accuracy.item())
         print('test loss:', running_loss)
-        print('accuracy:', accuracy.round(decimals=1).item())
+        print('accuracy:', ((accuracy * 10).round() / 10).item())
 
         if accuracy.item() < self.best_accuracy:
             self.best_accuracy = accuracy.item()
@@ -115,7 +117,7 @@ class Trainer:
         s, z = x
         seq = y
         prediction = self.model(s, z)
-        return s, prediction, tgt
+        return s[0], prediction[0], seq[0]
 
     @staticmethod
     def accuracy_evaluation(prediction, tgt):
@@ -123,7 +125,7 @@ class Trainer:
         Calculating the accuracy for some prediction and target.
         """
         # return 100 * (1 - ((prediction - tgt).abs() / (prediction ** 2 + tgt ** 2) ** 0.5).mean())
-        return 100 * (prediction == tgt).sum() / tgt.size(1)
+        return 100 * (torch.argmax(prediction.data, dim=1) == tgt).sum() / prediction.size(1)
 
     def save_trainer(self):
         """
@@ -149,5 +151,6 @@ class Trainer:
         plt.ylabel('Accuracy')
         if self.conf['trainer_save_path'] != 'None':
             time_label = datetime.now().strftime("%d_%m_%H_%M_%S")
-            plt.savefig(self.conf['trainer_save_path'], time_label, 'epoch', str(epoch))
+            plt.savefig(self.conf['figs_path'] + time_label + ' epoch_' + str(epoch))
+            self.fig_lst.append((fig, ax))
         plt.close(fig)

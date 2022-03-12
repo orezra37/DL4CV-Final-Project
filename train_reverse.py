@@ -55,22 +55,27 @@ class Trainer:
                 print('\nepoch:', epoch)
                 self.train_epoch()
                 if epoch % self.conf['test_every'] == 0:
-                    self.test_epoch()
+                    pred, s = self.test_epoch()
                 epoch += 1
             self.save_fig()
+            fig, ax = plt.subplots(2, 1)
+            elem = np.arange(len(pred[0]))
+            ax[0].plot(elem, pred[0].cpu().detach().numpy(), label='pred')
+            ax[0].plot(elem, s[0][0].cpu().detach().numpy(), label='s')
+            plt.legend()
+            ax[1].plot(elem, (s[0]-pred)[0].abs().cpu().detach().numpy())
+            plt.savefig('compare s and prediction')
 
     def train_epoch(self):
         self.optimizer.zero_grad()
         running_loss = 0
         for i_batch, batch in enumerate(self.train_loader):
             seq, s = self.model_forward(batch)
-            # seq, s = seq.to(self.device), s.to(self.device)
-            prediction = self.model(seq)
+            prediction = self.model(seq, s)
             loss = self.criterion(prediction, s[0])
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
-        self.loss_lst.append(running_loss)
         print('train loss:', running_loss)
 
     def test_epoch(self):
@@ -79,13 +84,13 @@ class Trainer:
         self.model = self.model.to(self.device)
         for i_batch, batch in enumerate(self.test_loader):
             seq, s = Trainer.model_forward(batch)
-            seq, s = seq.to(self.device), s.to(self.device)
-            prediction = self.model(seq)
+            prediction = self.model(seq, s)
             running_loss = self.criterion(prediction, s[0]).item()
             accuracy += Trainer.accuracy_evaluation(prediction=prediction,
                                                     tgt=s)
 
         accuracy /= len(self.test_loader)
+        self.loss_lst.append(running_loss)
         self.accuracy_lst.append(accuracy.item())
         print('test loss:', running_loss)
         print('accuracy', accuracy.round().item())
@@ -96,6 +101,7 @@ class Trainer:
                 torch.save(self.model.state_dict(), self.conf['model_save_name'])
 
         if self.conf['trainer_save_path'] != 'None': self.save_trainer()
+        return prediction, s
 
     @staticmethod
     def model_forward(batch):
@@ -117,7 +123,7 @@ class Trainer:
         fig, ax = plt.subplots(2, 1)
         loss = np.array(self.loss_lst)
         accuracy = np.array(self.accuracy_lst)
-        epochs = np.linspace(1, len(loss)//self.conf['test_every'], len(loss)//self.conf['test_every'])
+        epochs = np.arange(len(loss))
         ax[0].plot(epochs, loss)
         plt.ylabel('Loss')
         ax[1].plot(epochs, accuracy)

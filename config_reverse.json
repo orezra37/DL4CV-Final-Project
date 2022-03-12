@@ -1,7 +1,7 @@
 {
   "num_heads":  8,
-  "lr":         1e-3,
-  "epochs":     "inf",
+  "lr":         1e-2,
+  "epochs":     10,
   "test_every": 1,
   "train_data_path": "data",
   "test_data_path": "data",
@@ -10,5 +10,6 @@
   "trainer_save_path": "trainer_save_test",
   "trainer_load_path": "None",
   "num_encoder_layers": 5,
-  "num_decoder_layers": 5
+  "num_decoder_layers": 5,
+  "batch_size": 1
 }

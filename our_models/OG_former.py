@@ -85,7 +85,7 @@ class OGOriginalTransformer(nn.Module):
     This version of model does not use the information of z.
     """
 
-    def __init__(self, num_heads, model_name):
+    def __init__(self, num_heads):
         super(OGOriginalTransformer, self).__init__()
         # Parameters
         self.num_heads = num_heads
@@ -93,7 +93,6 @@ class OGOriginalTransformer(nn.Module):
         self.s_features_num = 128  # default number of features per sequence
         self.pre_process = self.only_s
         self.num_classes = 20
-        self.model_name = model_name
 
         # Layers
         self.linear1 = nn.Linear(in_features=self.res, out_features=self.res)
@@ -197,7 +196,7 @@ class ReverseOriginalOG(nn.Module):
             self.mlp_linear2
         )
 
-    def forward(self, seq):
+    def forward(self, seq, s):
         """
         seq - One dimensional vector which represents the amino acid sequence
         :return
@@ -263,11 +262,12 @@ class ReverseDefaultTransformerOG(nn.Module):
         :return
         s - latent space tensor which has shape (s, 384)
         """
-        y = seq[0]
+        y = seq
         y = torch.nn.functional.one_hot(y, self.num_classes).type(torch.FloatTensor).to(self.device)
         y0 = self.linear0(y)
         y = self.default_transformer(y0, s)
         y = self.norm(y+y0)
         y = self.mlp(y)
         return y[0]
+
 
